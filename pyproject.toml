@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "karldbot"
+version = "0.1.0"
+description = "Karl the coder."
+authors = ["Flávio Codeço Coelho <fccoelho@gmail.com>"]
+license = "GPLv3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+ruff = "^0.6.5"
+base-ai-agent = {git = "https://github.com/Deeplearn-PeD/base-ai-agent.git"}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+pytest-cov = "^5.0.0"
+pytest-ruff = "^0.4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
