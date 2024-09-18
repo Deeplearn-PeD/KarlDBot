@@ -16,6 +16,7 @@ it performs on the data science problem.
 """
 import os
 from base_agent.llminterface import LangModel, StructuredLangModel
+import duckdb
 
 
 class Environment:
@@ -48,14 +49,36 @@ class DataScienceProblem:
         """
         self.problem_name = problem_name
         self.data_source = data_source
-        self.data = None
+        self.data_table = 'data'
+        self.data_loaded = False
+        self.description = None
+        self.connection = None
+
+    def set_description(self, description: str):
+        """
+        Set the description of the data science problem.
+
+        :param description: Description of the data science problem.
+        """
+        self.description = description
 
     def load_data(self):
         """
         Load data from the data source. This method should be implemented
         to handle different types of data sources (e.g., CSV files, databases, APIs).
         """
-        raise NotImplementedError("This method should be implemented by subclasses.")
+        self.connection = duckdb.connect(":memory:")
+        res = self.connection.execute(f"CREATE TABLE {self.data_table} AS SELECT * FROM read_csv_auto('{self.data_source}')")
+        self.data_loaded = True
+
+    def sample_data(self):
+        """
+        Sample data from the loaded data. This method should be implemented
+        to handle different types of data sampling strategies.
+        """
+        sample  = self.connection.execute(f"SELECT * FROM {self.data_table} LIMIT 100").fetchdf()
+        return sample.to_dict()
+
 
     def preprocess_data(self):
         """
