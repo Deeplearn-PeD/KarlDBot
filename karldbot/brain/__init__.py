@@ -6,15 +6,20 @@ import dotenv
 dotenv.load_dotenv()
 
 
+class CodeOutput(BaseModel):
+    code: str
+    language: str
+    explanation: str
+
 class Koder:
-    def __init__(self, language_model):
+    def __init__(self, language_model='gpt-4o'):
         """
         Initialize the Koder with a language model and a prompt manager.
 
         :param language_model: An instance of a language model (e.g., LangModel, StructuredLangModel).
         :param prompt_manager: An instance of a prompt manager.
         """
-        self.language_model = LangModel(language_model)
+        self.language_model = StructuredLangModel(language_model)
         self.prompt_manager = PromptManager(LangModel(language_model))
         self.problem = None
 
@@ -36,7 +41,7 @@ class Koder:
             raise ValueError("No problem set for the Koder.")
         prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
         prompt = f"Considering the following data sample below\n{self.problem.sample_data}\n{prompt}"
-        code = self.language_model.get_response(prompt, '')
+        code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
         return code
 
     def debug_code(self, code_snippet):
@@ -59,15 +64,15 @@ class QualityReport(BaseModel):
 
 
 class CodeReviewer:
-    def __init__(self, language_model):
+    def __init__(self, language_model='gpt-4o'):
         """
         Initialize the CodeReviewer with a language model and a prompt manager.
 
         :param language_model: An instance of a language model (e.g., LangModel, StructuredLangModel).
         :param prompt_manager: An instance of a prompt manager.
         """
-        self.language_model = language_model
-        self.prompt_manager = PromptManager(StructuredLangModel())
+        self.language_model = StructuredLangModel(language_model)
+        self.prompt_manager = PromptManager(LangModel(language_model))
         self.score_model = QualityReport
 
     def review_code(self, code_snippet):
@@ -79,7 +84,7 @@ class CodeReviewer:
         """
         prompt = self.prompt_manager.generate_code_review_prompt(code_snippet)
         prompt += "\n please give a numerical grade for correctness(between 0 and 10 ), efficiency(between 0 and 10 ) and style(between 0 and 10 ) of the code snippet"
-        review_feedback = self.language_model.ask(prompt)
+        review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
         return review_feedback
 
     def optimize_prompt(self, prompt, optimization_target):
