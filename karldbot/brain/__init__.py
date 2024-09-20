@@ -1,6 +1,7 @@
 from base_agent.llminterface import LangModel, StructuredLangModel
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from karldbot.rle.environment import DataScienceProblem
+from karldbot.rle.agents import Agent
 import dotenv
 
 dotenv.load_dotenv()
@@ -11,7 +12,7 @@ class CodeOutput(BaseModel):
     language: str
     explanation: str
 
-class Koder:
+class Koder(Agent):
     def __init__(self, language_model='gpt-4o'):
         """
         Initialize the Koder with a language model and a prompt manager.
@@ -64,7 +65,7 @@ class QualityReport(BaseModel):
     recommendations: str
 
 
-class CodeReviewer:
+class CodeReviewer(Agent):
     def __init__(self, language_model='gpt-4o'):
         """
         Initialize the CodeReviewer with a language model and a prompt manager.

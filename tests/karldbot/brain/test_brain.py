@@ -3,16 +3,11 @@ import pytest
 from karldbot.brain import Koder, QualityReport, CodeReviewer, CodeOutput
 from karldbot.rle.environment import Environment, DataScienceProblem
 
-class Problem(DataScienceProblem):
-    def __init__(self, problem_name, data_source):
-        super().__init__(problem_name, data_source)
 
-    def evaluate_problem(self, solution):
-        return 5
-env = Environment('test_env')
-problem = Problem('Climate analysis', 'karldbot/rle/datasets/clima_PR.csv.gz')
+problem = DataScienceProblem('Climate analysis', 'karldbot/rle/datasets/clima_PR.csv.gz')
 problem.set_description('calcule a correlação entre a temperatura mínima(temp_min), e a precipitação média(precip_med) por ano(date) e geocodigo')
 problem.load_data()
+env = Environment('test_env', problem)
 
 def test_koder():
     koder = Koder('gpt-4o')

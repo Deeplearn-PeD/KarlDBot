@@ -2,12 +2,13 @@ import pytest
 from karldbot.rle.environment import Environment, DataScienceProblem
 
 def test_environment():
-    env = Environment('test_env')
+    problem = DataScienceProblem('Climate analysis', 'karldbot/rle/datasets/clima_PR.csv.gz')
+    env = Environment('test_env', problem = problem)
     assert env.ename == 'test_env'
-    assert env.state == None
-    assert env.reward == None
-    assert env.done == None
-    assert env.info == None
+    assert env.state == {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
+    assert env.reward == 0
+    assert env.done == False
+    assert env.info == {"recommendations": "", "solution": ""}
 
 def test_datascienceproblem():
     dsp = DataScienceProblem('Climate analysis', 'karldbot/rle/datasets/clima_PR.csv.gz')

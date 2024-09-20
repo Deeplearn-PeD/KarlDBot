@@ -1,6 +1,6 @@
 """
 Here the Environment class is defined. This class is responsible for
-managing the environment of a reinfoircement learning agent.
+managing the environment of a reinforcement learning agent.
 The environment is the world in which the agent interacts with.
 The environment is responsible for providing the agent with the
 state of the world, the reward for the action taken by the agent,
@@ -14,30 +14,8 @@ and provide a reward to the agent based on the quality of the code.
 The reward will also depend on if the code is correct or not, and how well
 it performs on the data science problem.
 """
-import os
-from base_agent.llminterface import LangModel, StructuredLangModel
 import duckdb
-
-
-class Environment:
-    def __init__(self, env_name):
-        self.ename = env_name
-        self.state = None
-        self.reward = None
-        self.done = None
-        self.info = None
-
-    def step(self, action):
-        raise NotImplementedError
-
-    def reset(self):
-        raise NotImplementedError
-
-    def render(self):
-        raise NotImplementedError
-
-    def close(self):
-        raise NotImplementedError
+from typing import Dict, Any
 
 class DataScienceProblem:
     def __init__(self, problem_name, data_source):
@@ -68,7 +46,8 @@ class DataScienceProblem:
         to handle different types of data sources (e.g., CSV files, databases, APIs).
         """
         self.connection = duckdb.connect(":memory:")
-        res = self.connection.execute(f"CREATE TABLE {self.data_table} AS SELECT * FROM read_csv_auto('{self.data_source}')")
+        res = self.connection.execute(
+            f"CREATE TABLE {self.data_table} AS SELECT * FROM read_csv_auto('{self.data_source}')")
         self.data_loaded = True
 
     def sample_data(self):
@@ -76,9 +55,8 @@ class DataScienceProblem:
         Sample data from the loaded data. This method should be implemented
         to handle different types of data sampling strategies.
         """
-        sample  = self.connection.execute(f"SELECT * FROM {self.data_table} LIMIT 100").fetchdf()
+        sample = self.connection.execute(f"SELECT * FROM {self.data_table} LIMIT 100").fetchdf()
         return sample.to_dict()
-
 
     def preprocess_data(self):
         """
@@ -96,4 +74,59 @@ class DataScienceProblem:
         :return: Evaluation metrics or score.
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
+
+class Environment:
+    def __init__(self, env_name:str, problem: DataScienceProblem):
+        self.ename = env_name
+        self.state = None
+        self.reward = None
+        self.done = None
+        self.info = None
+        self.problem = problem
+        self.coder_action_space = ["write_code", "debug_code", "optimize_prompt"]
+        self.reviewer_action_space = ["review_code", "optimize_prompt", "aprove_code"]
+        self.observation_space = ["code_correctness", "code_efficiency", "code_style", "aproved"]
+        self.state = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
+        self.reward = 0
+        self.done = 0
+        self.truncated = False
+        self.info = {"recommendations": "", "solution": ""}
+
+        def step(self, action: str,info: Dict[str, Any], agent: str = 'coder') -> tuple:
+            """
+            Execute an action in the environment.
+            :param self:
+            :param action: action to be executed
+            :param agent:  agent that is executing the action: "coder" or "reviewer"
+            :return:
+            """
+            if agent == 'coder':
+                self.state["aproved"] = False
+                self.info["solution"] = info['solution']
+                self.reward = 0
+            elif agent == 'reviewer':
+                self.state["aproved"] = info['review']['aproved']
+                if self.state["aproved"]:
+                    self.reward = 10
+                    self.done = True
+                self.state["code_correctness"] = info['review']['correctness']
+                self.state["code_efficiency"] = info['review']['efficiency']
+                self.state["code_style"] = info['review']['style']
+                self.info["recommendations"] = info['review']['recommendations']
+            return self.state, self.reward, self.done, self.truncated, self.info
+
+        def reset(self):
+            self.state = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
+            self.reward = 0
+            self.done = 0
+            self.truncated = False
+            self.info = {}
+            return self.state, self.reward, self.done, self.truncated, self.info
+
+        def render(self):
+            raise NotImplementedError
+
+        def close(self):
+            raise NotImplementedError
+
 
