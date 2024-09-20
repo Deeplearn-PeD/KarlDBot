@@ -5,6 +5,12 @@ description = "Karl the coder."
 authors = ["Flávio Codeço Coelho <fccoelho@gmail.com>"]
 license = "GPLv3"
 readme = "README.md"
+packages = [
+    { include = "karldbot", from = "." }
+]
+
+[tool.poetry.scripts]
+karl = "karldbot.cli:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"

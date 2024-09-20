@@ -16,3 +16,10 @@ class KarlInterface:
         :return: Trained model.
         """
         print(f"Training model {model_name} on data source {data_source}...")
+
+    def view_report(self):
+        pass
+
+
+def main():
+    fire.Fire(KarlInterface)
