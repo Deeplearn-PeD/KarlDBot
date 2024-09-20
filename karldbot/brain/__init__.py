@@ -61,6 +61,7 @@ class QualityReport(BaseModel):
     correctness: float
     efficiency: float
     style: float
+    recommendations: str
 
 
 class CodeReviewer:
