@@ -9,8 +9,9 @@ import os
 import json
 from karldbot.rle.environment import DataScienceProblem
 
-TEMPLATE = """# Report for {{ Problem_name }} using {{ model_name }}
+TEMPLATE = """# Report for {{ Problem_name }} using the {{ model_name }} LLM model
 This report describes the steps taken by Karl the Koder to solve the problem described below.
+
 ## Problem Description
 {{ description | safe }}
 
@@ -24,17 +25,22 @@ Based on the problem description, Karl the Koder generated the following code:
 {% else %}
 Then the coder produced the following improved code:
 {% endif %}
+
 ```python
 {{ code.code }}
 ```
+
+
+#### Explanation
+
 {{ code.explanation | safe }}
 
-The review of the code is as follows:
+The review of the code above is as follows:
 
-- **Correctness:** {{ review.correctness }}
-- **Efficiency:** {{ review.efficiency }}
-- **Style:** {{ review.style }}
- - **Recommendations:** {{ review.recommendations }}
+- **Correctness:** {{ review.review.correctness }}
+- **Efficiency:** {{ review.review.efficiency }}
+- **Style:** {{ review.review.style }}
+ - **Recommendations:** {{ review.review.recommendations }}
 {% endfor %}
 """
 
@@ -52,6 +58,7 @@ class Report:
         explanation = '' if 'code_explanation' not in info else info['code_explanation']
         prompt = '' if 'code_prompt' not in info else info['code_prompt']
         code = '' if 'solution' not in info else info['solution']
+        code = code.strip("```python").strip("```")
         self.coding_steps.append({'prompt': prompt, 'code': code, 'explanation': explanation})
 
     def render(self):
@@ -76,6 +83,7 @@ class Report:
         prompt = '' if 'review_prompt' not in info else info['review_prompt']
         report = '' if 'review' not in info else info['review']
         report = report.dict()
+        print(report)
         self.review_steps.append({'prompt': prompt, 'review': report})
 
     def save(self, filename):

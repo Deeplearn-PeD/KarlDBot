@@ -16,6 +16,7 @@ it performs on the data science problem.
 """
 import duckdb
 import random
+import codeop
 from typing import Dict, Any, Tuple
 
 
@@ -113,8 +114,9 @@ class Environment:
             self.score["code_efficiency"] = info['review'].efficiency
             self.score["code_style"] = info['review'].style
             self.info["recommendations"] = info['review'].recommendations
-            self.calc_reward()
             self.score["approved"] = info['review'].approved and self.state == 3
+            self.calc_reward()
+
             if self.score["approved"]:
                 self.done = True
             else:
@@ -131,11 +133,22 @@ class Environment:
             self.state = 0
         elif avg_score <= 6:
             self.state = 1
-        elif avg_score <= 9:
+        elif avg_score <= 7.5:
             self.state = 2
         else:
             self.state = 3
-        self.reward = 10 if self.score["aproved"] else 0
+        self.reward = 100 if self.score["aproved"] else 0
+        self.reward += avg_score  # penalize for each time step the agent has been inactive
+        try:
+            for line in self.info['solution'].split('\n'):
+                codeop.compile_command(line)
+        except SyntaxError:
+            self.reward -= 5
+
+
+    def run_code(self, code: str):
+        pass
+
 
     def action_sample(self) -> Tuple[int, int]:
         coder_action = 0 if self.t == 0 else random.sample(range(len(self.coder_action_space)), 1)[0]
