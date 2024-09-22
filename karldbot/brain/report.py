@@ -30,6 +30,7 @@ Then the coder produced the following improved code:
 {{ code.explanation | safe }}
 
 The review of the code is as follows:
+
 - **Correctness:** {{ review.correctness }}
 - **Efficiency:** {{ review.efficiency }}
 - **Style:** {{ review.style }}
@@ -50,7 +51,7 @@ class Report:
     def add_coding_step(self, info: dict):
         explanation = '' if 'code_explanation' not in info else info['code_explanation']
         prompt = '' if 'code_prompt' not in info else info['code_prompt']
-        code = '' if 'code' not in info else info['solution']
+        code = '' if 'solution' not in info else info['solution']
         self.coding_steps.append({'prompt': prompt, 'code': code, 'explanation': explanation})
 
     def render(self):
@@ -74,7 +75,7 @@ class Report:
         """
         prompt = '' if 'review_prompt' not in info else info['review_prompt']
         report = '' if 'review' not in info else info['review']
-        report = json.dumps(report)
+        report = report.dict()
         self.review_steps.append({'prompt': prompt, 'review': report})
 
     def save(self, filename):
