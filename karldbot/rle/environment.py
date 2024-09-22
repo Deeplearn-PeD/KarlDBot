@@ -141,7 +141,7 @@ class Environment:
         return coder_action, reviewer_action
 
     def reset(self):
-        self.score = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
+        self.score = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "approved": False}
         self.reward = 0
         self.done = 0
         self.truncated = False

@@ -67,11 +67,11 @@ class Koder(Agent):
         prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
         try:
             debugged_code = self.language_model.get_response(prompt,'')
-            info['solution'] = debugged_code
+            info['solution'] = debugged_code.code
         except InstructorRetryException as exc:
             logger.error(f"Error: {exc}")
-            debugged_code = info['solution']
-        return debugged_code
+
+        return info
 
     def optimize_code(self, info):
         """
@@ -87,8 +87,8 @@ class Koder(Agent):
             info['solution'] = optimized_code.code
         except InstructorRetryException as exc:
             logger.error(f"Error: {exc}")
-            optimized_code = info['solution']
-        return optimized_code
+
+        return info
 
     def update_policy(self , state, next_state, reward):
         """
@@ -161,10 +161,10 @@ class CodeReviewer(Agent):
         prompt += "\n please give a numerical grade for correctness(between 0 and 10 ), efficiency(between 0 and 10 ) and style(between 0 and 10 ) of the code snippet"
         try:
             review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
+            info['review'] = review_feedback
         except InstructorRetryException as exc:
             logger.error(f"Error: {exc}")
-            review_feedback = ""
-        info['review'] = review_feedback
+
         return info
 
     def optimize_prompt(self, info):
@@ -186,7 +186,7 @@ class CodeReviewer(Agent):
         :param info: A dictionary containing the code snippet to be approved.
         :return: The approval feedback.
         """
-        info['review']['approved'] = True
+        info['review'].approved = True
         return info
 
     def update_policy(self , state: Tuple[int,int], next_state: int, reward: int)-> np.ndarray:
