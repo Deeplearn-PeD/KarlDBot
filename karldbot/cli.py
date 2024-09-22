@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from karldbot.rle.environment import Environment, DataScienceProblem
 from karldbot.brain import Koder, CodeReviewer
+from karldbot.brain.report import Report
 
 
 class KarlInterface:
@@ -30,9 +31,10 @@ class KarlInterface:
         problem = DataScienceProblem(problem_name, data_source)
         problem.set_description(description)
         env = Environment('test_env', problem)
+        self.report = Report(problem, 'llama3.1')
         coder = Koder(self.llm_model, problem)
         coder.n_actions = len(env.coder_action_space)
-        reviewer = CodeReviewer()
+        reviewer = CodeReviewer(self.llm_model)
         # initialize the environment and agents
         state, reward, done, _, info = env.reset()
         q_value = np.zeros((len(env.observation_space), coder.n_actions))
@@ -41,13 +43,15 @@ class KarlInterface:
         rewards = []
         evolution = [state]
         it = 0
-        print(f"Training model {self.llm_model} on data source {self.data_source}...")
+        print(f"Training with  {self.llm_model} LLM on data source {self.data_source}...")
         with tqdm.tqdm(total=100) as pbar:
             while not done:
                 c_action, r_action = env.action_sample()
                 info = coder.actions[c_action](info)
+                self.report.add_coding_step(info)
                 new_state, reward, done, truncated, info = env.step(c_action, info=info, agent='coder')
                 info = reviewer.actions[r_action](info)
+                self.report.add_review_step(info)
                 new_state, reward_rev, done, truncated, info = env.step(r_action, info=info, agent='reviewer')
                 reviewer.update_policy((state, r_action), new_state, reward_rev)
                 coder.update_policy((state, c_action), new_state, reward)
@@ -55,6 +59,7 @@ class KarlInterface:
                 state = new_state
                 print(f"Step {it}: Reward: {reward + reward_rev}, State: {state}")
                 evolution.append(state)
+                self.report.save("climate_report.md")
 
                 it += 1
                 pbar.update(1)

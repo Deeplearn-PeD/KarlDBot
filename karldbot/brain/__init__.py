@@ -49,9 +49,11 @@ class Koder(Agent):
             raise ValueError("No problem set for the Koder.")
         prompt = self.prompt_manager.generate_code_writing_prompt(self.problem.description)
         prompt = f"Considering the following data sample below\n{self.problem.sample_data}\n{prompt}"
+        info["code_prompt"] = prompt
         try:
             code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
             info['solution'] = code.code
+            info["code_explanation"] = code.explanation
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
         return info
@@ -65,9 +67,13 @@ class Koder(Agent):
         """
         task_description = f"Debug the following code snippet.\n{info['solution']}"
         prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
+        info["code_prompt"] = prompt
         try:
             debugged_code = self.language_model.get_response(prompt,'', response_model=CodeOutput)
+            changed = debugged_code.code != info['solution']
             info['solution'] = debugged_code.code
+            info["code_explanation"] = debugged_code.explanation
+            logger.info(f"Debugged code: {changed}")
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
 
@@ -80,11 +86,15 @@ class Koder(Agent):
         :param info: A dictionary containing the code snippet to be optimized.
         :return: The optimized code.
         """
-        task_description = f"Optimize the following code snippet according to these recomendations: '{info["recommendations"]}'.\n{info['solution']}"
+        task_description = f"Improve the following code snippet according to these recomendations: '{info["recommendations"]}'.\n{info['solution']}"
         prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
+        info["code_prompt"] = prompt
         try:
             optimized_code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
+            changed = optimized_code.code != info['solution']
             info['solution'] = optimized_code.code
+            info["code_explanation"] = optimized_code.explanation
+            logger.info(f"Optimized code: {changed}")
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
 
@@ -159,6 +169,7 @@ class CodeReviewer(Agent):
         """
         prompt = self.prompt_manager.generate_code_review_prompt(info['solution'])
         prompt += "\n please give a numerical grade for correctness(between 0 and 10 ), efficiency(between 0 and 10 ) and style(between 0 and 10 ) of the code snippet"
+        info["review_prompt"] = prompt
         try:
             review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
             info['review'] = review_feedback

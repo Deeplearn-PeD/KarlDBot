@@ -46,7 +46,10 @@ class Report:
         self.coding_steps = []
         self.review_steps = []
 
-    def add_coding_step(self, prompt: str, code: str, explanation: str):
+    def add_coding_step(self, info: dict):
+        explanation = '' if 'code_explanation' not in info else info['code_explanation']
+        prompt = '' if 'code_prompt' not in info else info['code_prompt']
+        code = '' if 'code' not in info else info['solution']
         self.coding_steps.append({'prompt': prompt, 'code': code, 'explanation': explanation})
 
     def render(self):
@@ -59,7 +62,7 @@ class Report:
                                )
         return self.report
 
-    def add_review_step(self, prompt:str, code: str, report: str):
+    def add_review_step(self, info: dict):
         """
         Add a review step to the report.
         :param prompt: The prompt that was used to generate the code.
@@ -67,12 +70,14 @@ class Report:
         :param report: The report that was generated.
         :return:
         """
-        self.review_steps({'prompt': prompt, 'code': code, 'report': report})
+        prompt = '' if 'review_prompt' not in info else info['review_prompt']
+        report = '' if 'recomendations' not in info else info['recommendations']
+        self.review_steps.append({'prompt': prompt, 'report': report})
 
     def save(self, filename):
         self.filename = filename
-        if self.report is None:
-            self.render()
+
+        self.render()
         with open(filename,'w') as f:
             f.write(self.report)
 

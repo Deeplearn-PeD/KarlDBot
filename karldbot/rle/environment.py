@@ -107,6 +107,8 @@ class Environment:
             self.info["solution"] = info['solution']
             self.reward = 0
         elif agent == 'reviewer':
+            if not 'review' in  info:  #
+                return self.state, self.reward, self.done, self.truncated, self.info
             self.score["code_correctness"] = info['review'].correctness
             self.score["code_efficiency"] = info['review'].efficiency
             self.score["code_style"] = info['review'].style
