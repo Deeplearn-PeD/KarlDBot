@@ -53,7 +53,7 @@ class Koder(Agent):
             code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
             info['solution'] = code.code
         except InstructorRetryException as exc:
-            logger.error(f"Error: {exc}")
+            logger.warning(f"Error: {exc}")
         return info
 
     def debug_code(self, info):
@@ -66,10 +66,10 @@ class Koder(Agent):
         task_description = f"Debug the following code snippet.\n{info['solution']}"
         prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
         try:
-            debugged_code = self.language_model.get_response(prompt,'')
+            debugged_code = self.language_model.get_response(prompt,'', response_model=CodeOutput)
             info['solution'] = debugged_code.code
         except InstructorRetryException as exc:
-            logger.error(f"Error: {exc}")
+            logger.warning(f"Error: {exc}")
 
         return info
 
@@ -86,7 +86,7 @@ class Koder(Agent):
             optimized_code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
             info['solution'] = optimized_code.code
         except InstructorRetryException as exc:
-            logger.error(f"Error: {exc}")
+            logger.warning(f"Error: {exc}")
 
         return info
 
@@ -163,7 +163,7 @@ class CodeReviewer(Agent):
             review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
             info['review'] = review_feedback
         except InstructorRetryException as exc:
-            logger.error(f"Error: {exc}")
+            logger.warning(f"Error: {exc}")
 
         return info
 
