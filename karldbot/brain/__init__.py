@@ -2,6 +2,8 @@ from base_agent.llminterface import LangModel, StructuredLangModel
 from pydantic import BaseModel
 from karldbot.rle.environment import DataScienceProblem
 from karldbot.rle.agents import Agent
+import numpy as np
+from typing import Dict, Any, Tuple
 import dotenv
 
 dotenv.load_dotenv()
@@ -13,16 +15,18 @@ class CodeOutput(BaseModel):
     explanation: str
 
 class Koder(Agent):
-    def __init__(self, language_model='gpt-4o'):
+    def __init__(self, language_model='gpt-4o', problem: DataScienceProblem = None):
         """
         Initialize the Koder with a language model and a prompt manager.
 
         :param language_model: An instance of a language model (e.g., LangModel, StructuredLangModel).
-        :param prompt_manager: An instance of a prompt manager.
+        :param prooblem: An instance of a DataScienceProblem.
         """
+        super().__init__()
         self.language_model = StructuredLangModel(language_model)
         self.prompt_manager = PromptManager(LangModel(language_model))
-        self.problem = None
+        self.problem = problem
+        self.n_actions = 3
 
     def set_problem(self, problem: DataScienceProblem):
         """
@@ -57,11 +61,44 @@ class Koder(Agent):
         debugged_code = self.language_model.get_response(prompt,'')
         return debugged_code
 
+    def update_policy(self , state, next_state, q_value, reward):
+        """
+        Update q(s,a) value using the expected SARSA algorithm.
+        :param state: Tuple (s,a) representing the state and action.
+        :return:
+        """
+        target = 0
+        q_next = self.q_value[next_state,:]
+        best_actions = np.argwhere(q_next == np.max(q_next)).flatten()
+        for action_ in range(self.n_actions):  # 3 is the number of actions
+            if action_ in best_actions:
+                target += (1 - self.epsilon)/len(best_actions) + self.epsilon/3 * q_next[action_]
+            else:
+                target += self.epsilon/self.n_actions * q_next[action_]
+        target *= self.gamma
+        self.q_value[state] += self.step_size * (self.reward + target - self.q_value[state])
+        #TODO: update self.policy
+        return self.q_value
+
+
+    def select_action(self, state):
+        """
+        Select an action based on the epsilon-greedy policy.
+        :param state: state of the environment
+        :return:
+        """
+        if np.random.binomial(1, self.epsilon):
+            return np.random.choice(range(self.n_actions))
+        else:
+            values_ = self.q_value[state,:]
+            return np.random.choice(np.argwhere(values_ == np.max(values_)).flatten())
+
 
 class QualityReport(BaseModel):
     correctness: float
     efficiency: float
     style: float
+    approved: bool
     recommendations: str
 
 

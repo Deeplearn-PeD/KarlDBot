@@ -1,9 +1,14 @@
 from typing import Dict, Any
 
 class Agent:
-    def __init__(self, env, policy):
-        self.env = env
-        self.policy = policy
+    def __init__(self):
+        self.policy = {}  # policy is a function that maps states to actions
+        self.q_value = None  # action_value is a function that maps states and actions to values. Here it can be an array with shape (n_states, n_actions)
+        self.epsilon = 0.1 # epsilon is the probability of selecting a random action
+        self.gamma = 0.99 # gamma is the discount factor for future rewards
+        self.step_size = 0.5 # step_size is the learning rate
+
+
 
     def play(self, n_episodes=1, render=False):
         for _ in range(n_episodes):

@@ -15,7 +15,9 @@ The reward will also depend on if the code is correct or not, and how well
 it performs on the data science problem.
 """
 import duckdb
+import random
 from typing import Dict, Any
+
 
 class DataScienceProblem:
     def __init__(self, problem_name, data_source):
@@ -75,8 +77,9 @@ class DataScienceProblem:
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
 
+
 class Environment:
-    def __init__(self, env_name:str, problem: DataScienceProblem):
+    def __init__(self, env_name: str, problem: DataScienceProblem):
         self.ename = env_name
         self.state = None
         self.reward = None
@@ -88,11 +91,12 @@ class Environment:
         self.observation_space = ["code_correctness", "code_efficiency", "code_style", "aproved"]
         self.state = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
         self.reward = 0
-        self.done = 0
+        self.done = False
         self.truncated = False
+        self.t = 0
         self.info = {"recommendations": "", "solution": ""}
 
-        def step(self, action: str,info: Dict[str, Any], agent: str = 'coder') -> tuple:
+        def step(self, action: str, info: Dict[str, Any], agent: str = 'coder') -> tuple:
             """
             Execute an action in the environment.
             :param self:
@@ -113,7 +117,12 @@ class Environment:
                 self.state["code_efficiency"] = info['review']['efficiency']
                 self.state["code_style"] = info['review']['style']
                 self.info["recommendations"] = info['review']['recommendations']
+                self.t += 1  # increment time step only after reviewer has reviewed the code
             return self.state, self.reward, self.done, self.truncated, self.info
+
+        def action_sample(self) -> str:
+            action = self.coder.action_space[0] if self.t == 0 else random.sample(self.coder.action_space, 1)[0]
+            return action
 
         def reset(self):
             self.state = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
@@ -128,5 +137,3 @@ class Environment:
 
         def close(self):
             raise NotImplementedError
-
-

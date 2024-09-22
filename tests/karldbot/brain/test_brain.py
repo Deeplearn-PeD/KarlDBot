@@ -13,7 +13,7 @@ def test_koder():
     koder = Koder('gpt-4o')
     assert koder.language_model.model == 'gpt-4o'
 
-@pytest.mark.skip("Already tested")
+# @pytest.mark.skip("Already tested")
 def test_write_code():
     koder = Koder()
     koder.set_problem(problem)
