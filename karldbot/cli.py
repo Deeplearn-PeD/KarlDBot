@@ -55,7 +55,7 @@ class KarlInterface:
                 new_state, reward_rev, done, truncated, info = env.step(r_action, info=info, agent='reviewer')
                 reviewer.update_policy((state, r_action), new_state, reward_rev)
                 coder.update_policy((state, c_action), new_state, reward)
-                rewards.append(reward + reward_rev)
+                rewards.append(reward + reward_rev+ rewards[-1])
                 state = new_state
                 print(f"Step {it}: Reward: {reward + reward_rev}, State: {state}")
                 evolution.append(state)

@@ -13,6 +13,7 @@ TEMPLATE = """# Report for {{ Problem_name }} using the {{ model_name }} LLM mod
 This report describes the steps taken by Karl the Koder to solve the problem described below.
 
 ## Problem Description
+
 {{ description | safe }}
 
 Date: {{ date }}
