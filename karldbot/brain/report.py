@@ -6,7 +6,7 @@ of the code generation and review process. untill the problem is solved.
 from datetime import datetime
 import jinja2
 import os
-import webbrowser
+import json
 from karldbot.rle.environment import DataScienceProblem
 
 TEMPLATE = """# Report for {{ Problem_name }} using {{ model_name }}
@@ -37,6 +37,7 @@ The review of the code is as follows:
 {% endfor %}
 """
 
+
 class Report:
     def __init__(self, Problem: DataScienceProblem, model_name: str):
         self.model_name = model_name
@@ -55,11 +56,12 @@ class Report:
     def render(self):
         template = jinja2.Template(TEMPLATE)
         solution_steps = zip(self.coding_steps, self.review_steps)
-        self.report =  template.render(Problem_name=self.problem.problem_name,
-                               model_name=self.model_name,
-                               date=datetime.now(),
-                               description=self.problem.description
-                               )
+        self.report = template.render(Problem_name=self.problem.problem_name,
+                                      model_name=self.model_name,
+                                      date=datetime.now(),
+                                      description=self.problem.description,
+                                      solution_steps=solution_steps
+                                      )
         return self.report
 
     def add_review_step(self, info: dict):
@@ -71,14 +73,15 @@ class Report:
         :return:
         """
         prompt = '' if 'review_prompt' not in info else info['review_prompt']
-        report = '' if 'recomendations' not in info else info['recommendations']
-        self.review_steps.append({'prompt': prompt, 'report': report})
+        report = '' if 'review' not in info else info['review']
+        report = json.dumps(report)
+        self.review_steps.append({'prompt': prompt, 'review': report})
 
     def save(self, filename):
         self.filename = filename
 
         self.render()
-        with open(filename,'w') as f:
+        with open(filename, 'w') as f:
             f.write(self.report)
 
     def open(self):
