@@ -5,7 +5,8 @@ def test_environment():
     problem = DataScienceProblem('Climate analysis', 'karldbot/rle/datasets/clima_PR.csv.gz')
     env = Environment('test_env', problem = problem)
     assert env.ename == 'test_env'
-    assert env.state == {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "aproved": False}
+    assert env.score == {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "approved": False}
+    assert env.state == 0
     assert env.reward == 0
     assert env.done == False
     assert env.info == {"recommendations": "", "solution": ""}

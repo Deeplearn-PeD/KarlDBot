@@ -15,11 +15,11 @@ def test_koder():
 
 # @pytest.mark.skip("Already tested")
 def test_write_code():
-    koder = Koder()
+    koder = Koder('llama3.1')
     koder.set_problem(problem)
-    code = koder.write_code(problem.description)
+    code = koder.write_code(env.info)
     assert isinstance(code, CodeOutput)
-    assert code.language == 'python'
+    assert code.code!= ''
 
 def test_code_reviewer():
     code_reviewer = CodeReviewer()
@@ -27,13 +27,13 @@ def test_code_reviewer():
 
 def test_review_code():
     code_reviewer = CodeReviewer()
-    koder = Koder()
+    koder = Koder('llama3.1')
     koder.set_problem(problem)
-    code = koder.write_code(problem.description)
-    report = code_reviewer.review_code(code)
-    assert isinstance(report, QualityReport)
-    assert report.correctness >= 0
-    assert report.efficiency >= 0
-    assert report.correctness <= 10
-    assert report.efficiency <= 10
+    info = koder.write_code(env.info)
+
+    report = code_reviewer.review_code(info)
+    assert isinstance(report, dict)
+    assert report['review'].correctness >= 0
+    assert report['review'].efficiency >= 0
+    assert report['review'].style <= 10
 

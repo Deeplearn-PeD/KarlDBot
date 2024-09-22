@@ -1,17 +1,18 @@
 from base_agent.llminterface import LangModel, StructuredLangModel
+from instructor.exceptions import InstructorRetryException
 from pydantic import BaseModel
 from karldbot.rle.environment import DataScienceProblem
 from karldbot.rle.agents import Agent
 import numpy as np
 from typing import Dict, Any, Tuple
 import dotenv
+from loguru import logger
 
 dotenv.load_dotenv()
-
+logger.add("karldbot.log", rotation="1 MB")
 
 class CodeOutput(BaseModel):
     code: str
-    language: str
     explanation: str
 
 class Koder(Agent):
@@ -23,10 +24,12 @@ class Koder(Agent):
         :param prooblem: An instance of a DataScienceProblem.
         """
         super().__init__()
-        self.language_model = StructuredLangModel(language_model)
+        self.language_model = StructuredLangModel(language_model, 10)
         self.prompt_manager = PromptManager(LangModel(language_model))
+        self.prompt = self.prompt_manager.base_code_prompt
         self.problem = problem
-        self.n_actions = 3
+        self.actions =  {0: self.write_code, 1: self.debug_code, 2: self.optimize_code}
+        self.n_actions = len(self.actions)
 
     def set_problem(self, problem: DataScienceProblem):
         """
@@ -35,33 +38,59 @@ class Koder(Agent):
         :param problem: The problem to be solved. Is an instance of environment.DataSciencePrloblem.
         """
         self.problem = problem
-    def write_code(self, task_description):
+    def write_code(self, info: Dict[str, Any])-> Dict[str, Any]:
         """
         Write code to accomplish the given task.
 
-        :param task_description: A description of the coding task.
+        :param info: A dictionary containing the task description.
         :return: The generated code.
         """
         if self.problem is None:
             raise ValueError("No problem set for the Koder.")
-        prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
+        prompt = self.prompt_manager.generate_code_writing_prompt(self.problem.description)
         prompt = f"Considering the following data sample below\n{self.problem.sample_data}\n{prompt}"
-        code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
-        return code
+        try:
+            code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
+            info['solution'] = code.code
+        except InstructorRetryException as exc:
+            logger.error(f"Error: {exc}")
+        return info
 
-    def debug_code(self, code_snippet):
+    def debug_code(self, info):
         """
         Debug the given code snippet.
 
-        :param code_snippet: The code snippet to be debugged.
+        :param info: A dictionary containing the code snippet to be debugged.
         :return: The debugged code.
         """
-        task_description = f"Debug the following code snippet.\n{code_snippet}"
+        task_description = f"Debug the following code snippet.\n{info['solution']}"
         prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
-        debugged_code = self.language_model.get_response(prompt,'')
+        try:
+            debugged_code = self.language_model.get_response(prompt,'')
+            info['solution'] = debugged_code
+        except InstructorRetryException as exc:
+            logger.error(f"Error: {exc}")
+            debugged_code = info['solution']
         return debugged_code
 
-    def update_policy(self , state, next_state, q_value, reward):
+    def optimize_code(self, info):
+        """
+        Optimize the given code snippet for the specified optimization target.
+
+        :param info: A dictionary containing the code snippet to be optimized.
+        :return: The optimized code.
+        """
+        task_description = f"Optimize the following code snippet according to these recomendations: '{info["recommendations"]}'.\n{info['solution']}"
+        prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
+        try:
+            optimized_code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
+            info['solution'] = optimized_code.code
+        except InstructorRetryException as exc:
+            logger.error(f"Error: {exc}")
+            optimized_code = info['solution']
+        return optimized_code
+
+    def update_policy(self , state, next_state, reward):
         """
         Update q(s,a) value using the expected SARSA algorithm.
         :param state: Tuple (s,a) representing the state and action.
@@ -76,7 +105,7 @@ class Koder(Agent):
             else:
                 target += self.epsilon/self.n_actions * q_next[action_]
         target *= self.gamma
-        self.q_value[state] += self.step_size * (self.reward + target - self.q_value[state])
+        self.q_value[state] += self.step_size * (reward + target - self.q_value[state])
         #TODO: update self.policy
         return self.q_value
 
@@ -110,23 +139,35 @@ class CodeReviewer(Agent):
         :param language_model: An instance of a language model (e.g., LangModel, StructuredLangModel).
         :param prompt_manager: An instance of a prompt manager.
         """
+        super().__init__()
         self.language_model = StructuredLangModel(language_model)
         self.prompt_manager = PromptManager(LangModel(language_model))
+        self.prompt = self.prompt_manager.base_code_review_prompt
         self.score_model = QualityReport
+        self.language_model = StructuredLangModel(language_model,10)
+        self.prompt_manager = PromptManager(LangModel(language_model))
+        self.score_model = QualityReport
+        self.actions =  {0: self.review_code, 1: self.optimize_prompt, 2: self.approve_code}
+        self.n_actions = len(self.actions)
 
-    def review_code(self, code_snippet):
+    def review_code(self, info: Dict[str, Any])-> Dict[str, Any]:
         """
         Review the given code snippet for correctness, efficiency, and style.
 
-        :param code_snippet: The code snippet to be reviewed.
+        :param info: A dictionary containing the code snippet to be reviewed.
         :return: The review feedback.
         """
-        prompt = self.prompt_manager.generate_code_review_prompt(code_snippet)
+        prompt = self.prompt_manager.generate_code_review_prompt(info['solution'])
         prompt += "\n please give a numerical grade for correctness(between 0 and 10 ), efficiency(between 0 and 10 ) and style(between 0 and 10 ) of the code snippet"
-        review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
-        return review_feedback
+        try:
+            review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
+        except InstructorRetryException as exc:
+            logger.error(f"Error: {exc}")
+            review_feedback = ""
+        info['review'] = review_feedback
+        return info
 
-    def optimize_prompt(self, prompt, optimization_target):
+    def optimize_prompt(self, info):
         """
         Optimize the given prompt for the specified optimization target.
 
@@ -134,8 +175,52 @@ class CodeReviewer(Agent):
         :param optimization_target: The target for optimization (e.g., code quality, efficiency).
         :return: An optimized prompt.
         """
-        optimized_prompt = self.prompt_manager.optimize_prompt(prompt, optimization_target)
-        return optimized_prompt
+        optimized_prompt = self.prompt_manager.optimize_prompt(self, info["recommendations"])
+        info['coders_opt_prompt'] = optimized_prompt
+        return info
+
+    def approve_code(self, info):
+        """
+        Approve the given code snippet.
+
+        :param info: A dictionary containing the code snippet to be approved.
+        :return: The approval feedback.
+        """
+        info['review']['approved'] = True
+        return info
+
+    def update_policy(self , state: Tuple[int,int], next_state: int, reward: int)-> np.ndarray:
+        """
+        Update q(s,a) value using the expected SARSA algorithm.
+        :param state: Tuple (s,a) representing the state and action.
+        :param next_state: int representing the next state.
+        :return:
+        """
+        target = 0
+        q_next = self.q_value[next_state,:]
+        best_actions = np.argwhere(q_next == np.max(q_next)).flatten()
+        for action_ in range(self.n_actions):  # 3 is the number of actions
+            if action_ in best_actions:
+                target += (1 - self.epsilon)/len(best_actions) + self.epsilon/3 * q_next[action_]
+            else:
+                target += self.epsilon/self.n_actions * q_next[action_]
+        target *= self.gamma
+        self.q_value[state] += self.step_size * (reward + target - self.q_value[state])
+        #TODO: update self.policy
+        return self.q_value
+
+
+    def select_action(self, state):
+        """
+        Select an action based on the epsilon-greedy policy.
+        :param state: state of the environment
+        :return:
+        """
+        if np.random.binomial(1, self.epsilon):
+            return np.random.choice(range(self.n_actions))
+        else:
+            values_ = self.q_value[state,:]
+            return np.random.choice(np.argwhere(values_ == np.max(values_)).flatten())
 
 
 class PromptManager:
@@ -178,5 +263,5 @@ class PromptManager:
         :return: An optimized prompt.
         """
         prompt = f"Please optimize the prompt below so that the LLM output will be better with respect to {optimization_target}:\n'{prompt}'"
-        optimized_prompt = self.language_model.ask(prompt)
+        optimized_prompt = self.language_model.get_response(prompt, context='')
         return optimized_prompt
