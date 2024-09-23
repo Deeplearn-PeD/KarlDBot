@@ -1,9 +1,9 @@
-# KarlDBot
+# Karl D. Bot
 Karl is a coder bot that uses reinforcement learning  to produce high quality code.
 
-## How to Use KarlDBot
+## How to Use Karl
 
-KarlDBot is a coder bot that uses reinforcement learning to produce high-quality code. This tutorial will guide you through the steps to configure and use KarlDBot.
+Karl the coder bot uses reinforcement learning to produce high-quality code. This tutorial will guide you through the steps to configure and use KarlDBot.
 
 ### Prerequisites
 

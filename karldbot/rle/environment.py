@@ -34,6 +34,7 @@ class DataScienceProblem:
         self.data_loaded = False
         self.description = None
         self.connection = None
+        self.load_data()
 
     def set_description(self, description: str):
         """
@@ -53,13 +54,13 @@ class DataScienceProblem:
             f"CREATE TABLE {self.data_table} AS SELECT * FROM read_csv_auto('{self.data_source}')")
         self.data_loaded = True
 
-    def sample_data(self):
+    def sample_data(self, n=10):
         """
         Sample data from the loaded data. This method should be implemented
         to handle different types of data sampling strategies.
         """
-        sample = self.connection.execute(f"SELECT * FROM {self.data_table} LIMIT 100").fetchdf()
-        return sample.to_dict()
+        sample = self.connection.execute(f"SELECT * FROM {self.data_table} LIMIT {n}").fetchdf()
+        return sample.to_markdown()
 
     def preprocess_data(self):
         """
@@ -85,8 +86,8 @@ class Environment:
         self.problem = problem
         self.coder_action_space = ["write_code", "debug_code", "optimize_prompt"]
         self.reviewer_action_space = ["review_code", "optimize_prompt", "approve_code"]
-        self.observation_space = ["code_correctness", "code_efficiency", "code_style", "approved"]
-        self.score = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "approved": False}
+        self.observation_space = ["code_correctness", "code_efficiency", "code_clarity", "approved"]
+        self.score = {"code_correctness": 0, "code_efficiency": 0, "code_clarity": 0, "approved": False}
         self.state = 0
         self.reward = 0
         self.done = False
@@ -112,7 +113,7 @@ class Environment:
                 return self.state, self.reward, self.done, self.truncated, self.info
             self.score["code_correctness"] = info['review'].correctness
             self.score["code_efficiency"] = info['review'].efficiency
-            self.score["code_style"] = info['review'].style
+            self.score["code_clarity"] = info['review'].clarity
             self.info["recommendations"] = info['review'].recommendations
             self.score["approved"] = info['review'].approved and self.state == 3
             self.calc_reward()
@@ -128,22 +129,22 @@ class Environment:
         """
         Calculate the reward based on the quality of the code.
         """
-        avg_score = (self.score["code_correctness"] + self.score["code_efficiency"] + self.score["code_style"]) / 3
+        avg_score = (self.score["code_correctness"] + self.score["code_efficiency"] + self.score["code_clarity"]) / 3
         if avg_score <=3:
             self.state = 0
         elif avg_score <= 6:
             self.state = 1
-        elif avg_score <= 7.5:
+        elif avg_score <= 8.4:
             self.state = 2
         else:
             self.state = 3
         self.reward = 100 if self.score["aproved"] else 0
         self.reward += avg_score  # penalize for each time step the agent has been inactive
-        try:
-            for line in self.info['solution'].split('\n'):
+        for line in self.info['solution'].split('\n'):
+            try:
                 codeop.compile_command(line)
-        except SyntaxError:
-            self.reward -= 5
+            except SyntaxError:
+                self.reward -= 5
 
 
     def run_code(self, code: str):
@@ -156,7 +157,7 @@ class Environment:
         return coder_action, reviewer_action
 
     def reset(self):
-        self.score = {"code_correctness": 0, "code_efficiency": 0, "code_style": 0, "approved": False}
+        self.score = {"code_correctness": 0, "code_efficiency": 0, "code_clarity": 0, "approved": False}
         self.reward = 0
         self.done = 0
         self.truncated = False

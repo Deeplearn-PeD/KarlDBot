@@ -40,8 +40,14 @@ The review of the code above is as follows:
 
 - **Correctness:** {{ review.review.correctness }}
 - **Efficiency:** {{ review.review.efficiency }}
-- **Style:** {{ review.review.style }}
+- **Clarity:** {{ review.review.clarity }}
  - **Recommendations:** {{ review.review.recommendations }}
+ 
+ {% if review.review.approved %}
+    The code was approved by the reviewer.
+    {% else %}
+    The code was not approved by the reviewer.
+    {% endif %}
 {% endfor %}
 """
 

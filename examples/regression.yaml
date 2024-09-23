@@ -1,0 +1,7 @@
+problem_name: 'Análise de regressão'
+llm_model: 'gemma2'
+data_source: 'examples/data.csv.gz'
+description: 'Implemente um modelo de regressão para explorar os efeitos de variáveis climáticas na precipitação média(precip_med).
+As variáveis preditoras disponíveis são temperatura mínima(temp_min), temperatura média (temp_med), temperatura máxima(temp_max),
+umidade mínima(umid_min), umidade máxima(umid_max), pressão máxima(pressao_max) e pressão mínima(pressao_min).
+Use a cidade(geoodigo) como efeito aleatório'

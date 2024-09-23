@@ -13,9 +13,14 @@ from karldbot.brain.report import Report
 
 
 class KarlInterface:
-    def __init__(self, config_file: str = 'config.yaml'):
-        self.config_file = config_file
+    def __init__(self, config: str = 'config.yaml'):
+        """
+         Initialize the Karl Interface
+        :param config: YAML configuration file
+        """
+        self.config_file = config
         self._load_config()
+
 
     def _load_config(self):
         with open(self.config_file, 'r') as f:
@@ -62,7 +67,7 @@ class KarlInterface:
                 state = new_state
                 print(f"Step {it}: Reward: {reward + reward_rev}, State: {state}")
                 evolution.append(state)
-                self.report.save("climate_report.md")
+                self.report.save(f"{problem_name}.md")
 
                 it += 1
                 pbar.update(1)

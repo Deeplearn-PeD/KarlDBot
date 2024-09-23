@@ -9,7 +9,9 @@ import dotenv
 from loguru import logger
 
 dotenv.load_dotenv()
-logger.add("karldbot.log", rotation="1 MB")
+logger.add("karldbot.log", rotation="1 MB", level="WARNING")
+logger.add("karldbot_work.log", rotation="1 MB", level="INFO")
+
 
 class CodeOutput(BaseModel):
     code: str
@@ -30,6 +32,7 @@ class Koder(Agent):
         self.problem = problem
         self.actions =  {0: self.write_code, 1: self.debug_code, 2: self.optimize_code}
         self.n_actions = len(self.actions)
+        self.sample_data = problem.sample_data()
 
     def set_problem(self, problem: DataScienceProblem):
         """
@@ -48,12 +51,13 @@ class Koder(Agent):
         if self.problem is None:
             raise ValueError("No problem set for the Koder.")
         prompt = self.prompt_manager.generate_code_writing_prompt(self.problem.description)
-        prompt = f"Considering the following data sample below\n{self.problem.sample_data}\n{prompt}"
+        prompt = f"Considering the following data sample below\n{self.sample_data}\n{prompt}"
         info["code_prompt"] = prompt
         try:
             code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
             info['solution'] = code.code
             info["code_explanation"] = code.explanation
+            logger.info(f"Agent: Koder; Prompt: {prompt}.")
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
         return info
@@ -73,7 +77,7 @@ class Koder(Agent):
             changed = debugged_code.code != info['solution']
             info['solution'] = debugged_code.code
             info["code_explanation"] = debugged_code.explanation
-            logger.info(f"Debugged code: {changed}")
+            logger.info(f"Agent: Koder; Prompt: {prompt}; Changed: {changed}")
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
 
@@ -94,7 +98,7 @@ class Koder(Agent):
             changed = optimized_code.code != info['solution']
             info['solution'] = optimized_code.code
             info["code_explanation"] = optimized_code.explanation
-            logger.info(f"Optimized code: {changed}")
+            logger.info(f"Agent: Koder; Prompt: {prompt}; Changed: {changed}")
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
 
@@ -136,7 +140,7 @@ class Koder(Agent):
 class QualityReport(BaseModel):
     correctness: float
     efficiency: float
-    style: float
+    clarity: float
     approved: bool
     recommendations: str
 
@@ -168,11 +172,13 @@ class CodeReviewer(Agent):
         :return: The review feedback.
         """
         prompt = self.prompt_manager.generate_code_review_prompt(info['solution'])
-        prompt += "\n please give a numerical grade for correctness(between 0 and 10 ), efficiency(between 0 and 10 ) and style(between 0 and 10 ) of the code snippet"
+        prompt += ("\n Please give a numerical grade for correctness(between 0.0 and 10.0 ), efficiency(between 0.0 and 10.0 ) and clarity(between 0.0 and 10.0 ) of the code snippet. "
+                   "Don't hesitate to give it a top grade, if you think it deserves it. Only approve the code if you think it solves the problem.")
         info["review_prompt"] = prompt
         try:
             review_feedback = self.language_model.get_response(prompt, context='', response_model=self.score_model)
             info['review'] = review_feedback
+            # logger.info(f"Agent: CodeReviewer; Prompt: {prompt}; Review: {review_feedback}")
         except InstructorRetryException as exc:
             logger.warning(f"Error: {exc}")
 
@@ -188,6 +194,7 @@ class CodeReviewer(Agent):
         """
         optimized_prompt = self.prompt_manager.optimize_prompt(self, info["recommendations"])
         info['coders_opt_prompt'] = optimized_prompt
+        # logger.info(f"Agent: CodeReviewer; Prompt: {info['code_prompt']}; Optimized prompt: {optimized_prompt}")
         return info
 
     def approve_code(self, info):
