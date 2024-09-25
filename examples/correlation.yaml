@@ -1,4 +1,4 @@
 problem_name: 'Análise de correlação entre temperatura mínima e precipitação média'
-llm_model: 'gemma2'
+llm_model: 'qwen2.5-coder'
 data_source: 'data.csv.gz'
 description: 'Calcule a correlação entre a temperatura mínima(temp_min), e a precipitação média(precip_med) por ano(date) e geocodigo'

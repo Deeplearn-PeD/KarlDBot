@@ -134,7 +134,7 @@ class Environment:
             self.state = 0
         elif avg_score <= 6:
             self.state = 1
-        elif avg_score <= 8.4:
+        elif avg_score <= 7.5:
             self.state = 2
         else:
             self.state = 3

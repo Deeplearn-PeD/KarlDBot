@@ -36,7 +36,7 @@ class KarlInterface:
         problem = DataScienceProblem(problem_name, data_source)
         problem.set_description(description)
         env = Environment('test_env', problem)
-        self.report = Report(problem, 'llama3.1')
+        self.report = Report(problem, self.llm_model)
         coder = Koder(self.llm_model, problem)
         coder.n_actions = len(env.coder_action_space)
         reviewer = CodeReviewer(self.llm_model)
@@ -44,14 +44,18 @@ class KarlInterface:
         state, reward, done, _, info = env.reset()
         q_value = np.zeros((len(env.observation_space), coder.n_actions))
         coder.q_value = q_value
-        reviewer.q_value = q_value
+        reviewer.q_value = np.zeros((len(env.observation_space), reviewer.n_actions))
         rewards = []
         evolution = [state]
         it = 0
         print(f"Training with  {self.llm_model} LLM on data source {self.data_source}...")
         with tqdm.tqdm(total=100) as pbar:
             while not done:
-                c_action, r_action = env.action_sample()
+                if it == 0:
+                    c_action, r_action = env.action_sample()
+                else:
+                    c_action = coder.select_action(state)
+                    r_action = reviewer.select_action(state)
                 info = coder.actions[c_action](info)
                 self.report.add_coding_step(info)
                 new_state, reward, done, truncated, info = env.step(c_action, info=info, agent='coder')
