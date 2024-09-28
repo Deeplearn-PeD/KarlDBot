@@ -29,10 +29,10 @@ class Koder(Agent):
         self.language_model = StructuredLangModel(language_model, 10)
         self.prompt_manager = PromptManager(LangModel(language_model))
         self.prompt = self.prompt_manager.base_code_prompt
-        self.problem = problem
         self.actions =  {0: self.write_code, 1: self.debug_code, 2: self.optimize_code}
         self.n_actions = len(self.actions)
         self.sample_data = problem.sample_data()
+        self.set_problems(problem)
 
     def set_problem(self, problem: DataScienceProblem):
         """
@@ -41,6 +41,8 @@ class Koder(Agent):
         :param problem: The problem to be solved. Is an instance of environment.DataSciencePrloblem.
         """
         self.problem = problem
+        self.prompt = self.prompt_manager.generate_code_writing_prompt(problem, self.sample_data)
+
     def write_code(self, info: Dict[str, Any])-> Dict[str, Any]:
         """
         Write code to accomplish the given task.
@@ -252,15 +254,18 @@ class PromptManager:
         self.base_code_prompt = "You are an experienced Python coder. Your job is to write correct, efficient, and well-structured code to solve data-science problems.\n"
         self.base_code_review_prompt = "You are a senior data scientist. Your job is to review the code written by a junior data scientist for correctness, efficiency, and style.\n"
 
-    def generate_code_writing_prompt(self, task_description):
+    def generate_code_writing_prompt(self, problem, sample_data):
         """
         Generate a prompt for code writing based on the task description.
 
         :param task_description: A description of the coding task.
         :return: A prompt for code writing.
         """
-        prompt = self.base_code_prompt + f"Write code to accomplish the following task: {task_description}"
-        return prompt
+        code_prompt = self.language_model.get_response(f"""Please prepare an effective prompt for a coding LLM to generate code that to solve the analytical task decribed below:
+- data source: {problem.data_source}
+- problem definition: {problem.description}
+""",context='')
+        return self.base_code_prompt+ code_prompt + f"\nHere is a sample data: {sample_data}"
 
     def generate_code_review_prompt(self, code_snippet):
         """

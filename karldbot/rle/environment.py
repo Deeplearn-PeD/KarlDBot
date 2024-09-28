@@ -134,11 +134,11 @@ class Environment:
             self.state = 0
         elif avg_score <= 6:
             self.state = 1
-        elif avg_score <= 7.5:
+        elif avg_score <= 8.0:
             self.state = 2
         else:
             self.state = 3
-        self.reward = 100 if self.score["aproved"] else 0
+        self.reward = 100 if self.score["approved"] else 0
         self.reward += avg_score  # penalize for each time step the agent has been inactive
         for line in self.info['solution'].split('\n'):
             try:
