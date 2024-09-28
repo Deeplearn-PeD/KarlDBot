@@ -49,8 +49,9 @@ class KarlInterface:
         evolution = [state]
         it = 0
         print(f"Training with  {self.llm_model} LLM on data source {self.data_source}...")
-        with tqdm.tqdm(total=100) as pbar:
+        with tqdm.tqdm(total=50) as pbar:
             while not done:
+                info['step'] = it
                 if it == 0:
                     c_action, r_action = env.action_sample()
                 else:
@@ -72,15 +73,31 @@ class KarlInterface:
                 print(f"Step {it}: Reward: {reward + reward_rev}, State: {state}")
                 evolution.append(state)
                 self.report.save(f"{problem_name}.md")
-
+                if it == 50:
+                    break
                 it += 1
                 pbar.update(1)
-        self.plot_rewards(rewards)
+        self._plot_rewards(rewards)
+        self._plot_policies(coder.q_value, reviewer.q_value)
 
-    def plot_rewards(self, rewards):
+    def _plot_rewards(self, rewards):
         plt.plot(rewards)
         plt.xlabel('Time step')
         plt.ylabel('Total Reward')
+        plt.show()
+
+    def _plot_policies(self, code_policy, review_policy):
+        fig, [ax1,ax2] = plt.subplots(1,2)
+        im1 = ax1.imshow(code_policy)
+        ax1.set_title('Coder Policy')
+        ax1.set_ylabel('State')
+        ax1.set_xlabel('Action')
+        fig.colorbar(im1, ax=ax1, orientation='vertical')
+        im2 = ax2.imshow(review_policy)
+        ax2.set_title('Reviewer Policy')
+        ax2.set_ylabel('State')
+        ax2.set_xlabel('Action')
+        fig.colorbar(im2, ax=ax2, orientation='vertical')
         plt.show()
 
     def view_report(self):

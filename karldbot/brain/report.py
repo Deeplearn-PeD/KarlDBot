@@ -18,7 +18,8 @@ This report describes the steps taken by Karl the Koder to solve the problem des
 
 Date: {{ date }}
 
-## Step-by-Step Solution
+### Proposed solution
+#### Step-by-Step Solution
 {% for code, review  in solution_steps %}
 ### Step {{ loop.index }}
 {%if loop.index == 1 %}
@@ -30,12 +31,11 @@ Then the coder produced the following improved code:
 ```python
 {{ code.code }}
 ```
-
-
 #### Explanation
 
 {{ code.explanation | safe }}
 
+### Code Review
 The review of the code above is as follows:
 
 - **Correctness:** {{ review.review.correctness }}
@@ -44,9 +44,9 @@ The review of the code above is as follows:
  - **Recommendations:** {{ review.review.recommendations }}
  
  {% if review.review.approved %}
-    The code was approved by the reviewer.
+    This code was approved by the reviewer.
     {% else %}
-    The code was not approved by the reviewer.
+    This code was not approved by the reviewer.
     {% endif %}
 {% endfor %}
 """
@@ -89,7 +89,7 @@ class Report:
         """
         prompt = '' if 'review_prompt' not in info else info['review_prompt']
         report = '' if 'review' not in info else info['review']
-        report = report.dict()
+        report = '' if  isinstance(report, str) else report.dict()
         print(report)
         self.review_steps.append({'prompt': prompt, 'review': report})
 

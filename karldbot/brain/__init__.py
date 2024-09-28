@@ -9,7 +9,8 @@ import dotenv
 from loguru import logger
 
 dotenv.load_dotenv()
-logger.add("karldbot.log", rotation="1 MB", level="WARNING")
+logger.remove(0)
+logger.add("karldbot.log", rotation="1  MB", level="WARNING")
 logger.add("karldbot_work.log", rotation="1 MB", level="INFO")
 
 
@@ -18,7 +19,7 @@ class CodeOutput(BaseModel):
     explanation: str
 
 class Koder(Agent):
-    def __init__(self, language_model='gpt-4o', problem: DataScienceProblem = None):
+    def __init__(self, language_model='qwen2.5-coder', problem: DataScienceProblem = None):
         """
         Initialize the Koder with a language model and a prompt manager.
 
@@ -27,16 +28,16 @@ class Koder(Agent):
         """
         super().__init__()
         self.language_model = StructuredLangModel(language_model, 10)
-        self.prompt_manager = PromptManager(LangModel(language_model))
+        self.prompt_manager = PromptManager(LangModel("gemma2"))
         self.prompt = self.prompt_manager.base_code_prompt
         self.actions =  {0: self.write_code, 1: self.debug_code, 2: self.optimize_code}
         self.n_actions = len(self.actions)
         self.sample_data = problem.sample_data()
-        self.set_problems(problem)
+        self.set_problem(problem)
 
     def set_problem(self, problem: DataScienceProblem):
         """
-        Set the problem to be solved by the Koder.
+        Set the problem to be solved by the Koder. Also prepares  the initial prompt.
 
         :param problem: The problem to be solved. Is an instance of environment.DataSciencePrloblem.
         """
@@ -52,8 +53,10 @@ class Koder(Agent):
         """
         if self.problem is None:
             raise ValueError("No problem set for the Koder.")
-        prompt = self.prompt_manager.generate_code_writing_prompt(self.problem.description)
-        prompt = f"Considering the following data sample below\n{self.sample_data}\n{prompt}"
+        if info['step'] == 0:
+            prompt = self.prompt_manager.generate_code_writing_prompt(self.problem, self.sample_data)
+        else:
+            prompt = f"Considering the problem description: '{self.problem.description}'\n and  your existing solution: \n{info['solution']}\n Please continue to enhance it."
         info["code_prompt"] = prompt
         try:
             code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
@@ -71,8 +74,8 @@ class Koder(Agent):
         :param info: A dictionary containing the code snippet to be debugged.
         :return: The debugged code.
         """
-        task_description = f"Debug the following code snippet.\n{info['solution']}"
-        prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
+
+        prompt = self.prompt_manager.generate_code_debugging_prompt(info)
         info["code_prompt"] = prompt
         try:
             debugged_code = self.language_model.get_response(prompt,'', response_model=CodeOutput)
@@ -92,8 +95,7 @@ class Koder(Agent):
         :param info: A dictionary containing the code snippet to be optimized.
         :return: The optimized code.
         """
-        task_description = f"Improve the following code snippet according to these recomendations: '{info["recommendations"]}'.\n{info['solution']}"
-        prompt = self.prompt_manager.generate_code_writing_prompt(task_description)
+        prompt = f"Improve the following code,  according to the recomendations: \n Recomendations: '{info["recommendations"]}'.\nCode: \n{info['solution']}"
         info["code_prompt"] = prompt
         try:
             optimized_code = self.language_model.get_response(prompt, context='', response_model=CodeOutput)
@@ -226,7 +228,6 @@ class CodeReviewer(Agent):
                 target += self.epsilon/self.n_actions * q_next[action_]
         target *= self.gamma
         self.q_value[state] += self.step_size * (reward + target - self.q_value[state])
-        #TODO: update self.policy
         return self.q_value
 
 
@@ -254,6 +255,19 @@ class PromptManager:
         self.base_code_prompt = "You are an experienced Python coder. Your job is to write correct, efficient, and well-structured code to solve data-science problems.\n"
         self.base_code_review_prompt = "You are a senior data scientist. Your job is to review the code written by a junior data scientist for correctness, efficiency, and style.\n"
 
+    def generate_code_debugging_prompt(self, info):
+        """
+        Generate a prompt for code debugging based on the provided code snippet.
+
+        :param code_snippet: A snippet of code to be debugged.
+        :return: A prompt for code debugging.
+        """
+        code_snippet = info['solution']
+        if 'bugs' in info:
+            buglist = "\n".join(info['bugs'])
+        prompt = self.base_code_prompt + f"Debug the following code snippet: {code_snippet}, and fix the following bugs: {buglist}"
+        return prompt
+
     def generate_code_writing_prompt(self, problem, sample_data):
         """
         Generate a prompt for code writing based on the task description.
@@ -261,11 +275,13 @@ class PromptManager:
         :param task_description: A description of the coding task.
         :return: A prompt for code writing.
         """
-        code_prompt = self.language_model.get_response(f"""Please prepare an effective prompt for a coding LLM to generate code that to solve the analytical task decribed below:
-- data source: {problem.data_source}
-- problem definition: {problem.description}
-""",context='')
-        return self.base_code_prompt+ code_prompt + f"\nHere is a sample data: {sample_data}"
+#         code_prompt = self.language_model.get_response(f"""Please prepare an effective prompt for a coding LLM to generate code that to solve the analytical task decribed below:
+# - data source: {problem.data_source}
+# - problem definition: {problem.description}
+# """,context='')
+#         print(code_prompt)
+        problem_definition= "You have to write a Python code to solve the following  datascience problem. The data source is: " + problem.data_source + ". The problem definition is: " + problem.description
+        return self.base_code_prompt + '\n' + problem_definition#+  f"\nHere is a sample of the data:\n{sample_data}"
 
     def generate_code_review_prompt(self, code_snippet):
         """
