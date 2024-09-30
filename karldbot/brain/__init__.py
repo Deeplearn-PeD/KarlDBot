@@ -9,7 +9,12 @@ import dotenv
 from loguru import logger
 
 dotenv.load_dotenv()
-logger.remove(0)
+
+# Setup logging
+try:
+    logger.remove(0)
+except ValueError:
+    pass
 logger.add("karldbot.log", rotation="1  MB", level="WARNING")
 logger.add("karldbot_work.log", rotation="1 MB", level="INFO")
 
