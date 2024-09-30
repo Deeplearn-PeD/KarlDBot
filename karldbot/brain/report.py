@@ -4,9 +4,8 @@ of the code generation and review process. untill the problem is solved.
 """
 
 from datetime import datetime
-import jinja2
 import os
-import json
+import jinja2
 from karldbot.rle.environment import DataScienceProblem
 
 TEMPLATE = """# Report for {{ Problem_name }} using the {{ model_name }} LLM model
@@ -65,27 +64,28 @@ class Report:
         explanation = '' if 'code_explanation' not in info else info['code_explanation']
         prompt = '' if 'code_prompt' not in info else info['code_prompt']
         code = '' if 'solution' not in info else info['solution']
-        code = code.strip("```python").strip("```")
+        code = code.strip("```python").strip("```").strip()
         self.coding_steps.append({'prompt': prompt, 'code': code, 'explanation': explanation})
 
     def render(self):
         template = jinja2.Template(TEMPLATE)
         solution_steps = zip(self.coding_steps, self.review_steps)
-        self.report = template.render(Problem_name=self.problem.problem_name,
-                                      model_name=self.model_name,
-                                      date=datetime.now(),
-                                      description=self.problem.description,
-                                      solution_steps=solution_steps
-                                      )
+        try:
+            self.report = template.render(
+                Problem_name=self.problem.problem_name,
+                model_name=self.model_name,
+                date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                description=self.problem.description,
+                solution_steps=solution_steps
+            )
+        except jinja2.TemplateError as e:
+            raise RuntimeError(f"Error rendering template: {e}")
         return self.report
 
     def add_review_step(self, info: dict):
         """
         Add a review step to the report.
-        :param prompt: The prompt that was used to generate the code.
-        :param code: The code that was generated.
-        :param report: The report that was generated.
-        :return:
+        :param info: A dictionary containing review information.
         """
         prompt = '' if 'review_prompt' not in info else info['review_prompt']
         report = '' if 'review' not in info else info['review']
@@ -97,15 +97,18 @@ class Report:
         self.filename = filename
 
         self.render()
-        with open(filename, 'w') as f:
-            f.write(self.report)
+        try:
+            with open(filename, 'w') as f:
+                f.write(self.report)
+        except IOError as e:
+            raise RuntimeError(f"Error saving report to {filename}: {e}")
 
     def open(self):
         """
         Open the generated report in the default markdown viewer.
         :return:
         """
-        # check what the OS is
+        """Open the generated report in the default markdown viewer."""
         import platform
         if platform.system() == 'Windows':
             os.system(f'start {self.filename}')
