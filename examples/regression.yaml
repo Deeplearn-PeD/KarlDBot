@@ -1,7 +1,7 @@
 problem_name: 'Análise de regressão'
 llm_model: 'qwen3'
 data_source: 'examples/data.csv.gz'
-description: 'Implemente um modelo de regressão para explorar os efeitos de variáveis climáticas na precipitação média(precip_med).
-As variáveis preditoras disponíveis são temperatura mínima(temp_min), temperatura média (temp_med), temperatura máxima(temp_max),
-umidade mínima(umid_min), umidade máxima(umid_max), pressão máxima(pressao_max) e pressão mínima(pressao_min).
-Use a cidade(geoodigo) como efeito aleatório'
+description: 'Please implement a regression model to explore the effects of climate variables on average precipitation(precip_med).
+The available features are minimum temperature(temp_min), mean temperature (temp_med), maximum temperature(temp_max),
+minimum humidity(umid_min), maximum humidity(umid_max), Maximum Atmospheric pressure(pressao_max) and minimum atmospheric presure(pressao_min).
+Use the city(geoodigo) as a random effect.'

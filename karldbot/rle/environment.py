@@ -17,8 +17,11 @@ it performs on the data science problem.
 import duckdb
 import random
 import codeop
+from loguru import logger
 from typing import Dict, Any, Tuple
 
+logger.remove(0)
+logger.add("code_bugs.log", rotation="1 MB", level="INFO")
 
 class DataScienceProblem:
     def __init__(self, problem_name, data_source):
@@ -134,17 +137,22 @@ class Environment:
             self.state = 0
         elif avg_score <= 6:
             self.state = 1
-        elif avg_score <= 7.5:
+        elif avg_score <= 7.9:
             self.state = 2
         else:
             self.state = 3
-        self.reward = 100 if self.score["aproved"] else 0
+        self.reward = 100 if self.score["approved"] else 0
         self.reward += avg_score  # penalize for each time step the agent has been inactive
+        # Check code for syntax errors
+        bugs = []
         for line in self.info['solution'].split('\n'):
             try:
                 codeop.compile_command(line)
             except SyntaxError:
+                logger.info(f"Syntax error in line: {line}")
+                bugs.append(line)
                 self.reward -= 5
+        self.info['bugs'] = bugs
 
 
     def run_code(self, code: str):
