@@ -11,7 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
     "ruff>=0.6.5,<0.7.0",
     "pydantic>=2.9.2,<3.0.0",
-    "duckdb>=1.1.0,<2.0.0",
+    "duckdb>=1.1.0",
     "pandas>=2.2.2,<3.0.0",
     "python-dotenv>=1.0.1,<2.0.0",
     "jinja2>=3.1.4,<4.0.0",
@@ -23,6 +23,8 @@ dependencies = [
     "tabulate>=0.9.0,<0.10.0",
     "base-ai-agent @ git+https://github.com/Deeplearn-PeD/base-ai-agent.git"
 ]
+[tool.uv]
+package = true
 
 [project.scripts]
 karl = "karldbot.cli:main"
@@ -34,6 +36,3 @@ dev = [
     "pytest-ruff>=0.4.1,<0.5.0"
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"

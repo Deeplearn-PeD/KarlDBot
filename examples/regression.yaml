@@ -1,5 +1,5 @@
 problem_name: 'Análise de regressão'
-llm_model: 'qwen2.5-coder'
+llm_model: 'qwen3'
 data_source: 'examples/data.csv.gz'
 description: 'Implemente um modelo de regressão para explorar os efeitos de variáveis climáticas na precipitação média(precip_med).
 As variáveis preditoras disponíveis são temperatura mínima(temp_min), temperatura média (temp_med), temperatura máxima(temp_max),
