@@ -1,5 +1,5 @@
 problem_name: 'Análise de regressão'
-llm_model: 'qwen2.5-coder'
+llm_model: 'qwen3'
 data_source: 'examples/data.csv.gz'
 description: 'Please implement a regression model to explore the effects of climate variables on average precipitation(precip_med).
 The available features are minimum temperature(temp_min), mean temperature (temp_med), maximum temperature(temp_max),
