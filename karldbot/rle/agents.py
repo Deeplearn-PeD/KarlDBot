@@ -8,8 +8,6 @@ class Agent:
         self.gamma = 0.99 # gamma is the discount factor for future rewards
         self.step_size = 0.5 # step_size is the learning rate
 
-
-
     def play(self, n_episodes=1, render=False):
         for _ in range(n_episodes):
             state = self.env.reset()
