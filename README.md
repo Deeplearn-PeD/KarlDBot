@@ -1,5 +1,9 @@
 # Karl D. Bot
 
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/Deeplearn-PeD/KarlDBot)
+
 Karl is a multi-agent reinforcement learning system that produces high-quality data science code.
 
 ## Architecture
