@@ -1,108 +1,151 @@
-"""
-This is the entry point for the CLI application.
+import asyncio
+from pathlib import Path
+from typing import Any
 
-"""
 import fire
-import yaml
-import tqdm
-import numpy as np
 import matplotlib.pyplot as plt
-from karldbot.rle.environment import Environment, DataScienceProblem
-from karldbot.brain import Koder, CodeReviewer
-from karldbot.brain.report import Report
+import numpy as np
+import tqdm
+import yaml
+
+from karldbot.agents.koder import Koder
+from karldbot.agents.reviewer import CodeReviewer
+from karldbot.environment import DataScienceProblem, Environment
+from karldbot.models.config import AgentConfig, LLMConfig, ProblemConfig
+from karldbot.orchestration import AgentCoordinator
+from karldbot.report import Report
 
 
 class KarlInterface:
-    def __init__(self, config: str = 'config.yaml'):
-        """
-         Initialize the Karl Interface
-        :param config: YAML configuration file
-        """
+    def __init__(self, config: str = "config.yaml"):
         self.config_file = config
         self._load_config()
 
-
-    def _load_config(self):
-        with open(self.config_file, 'r') as f:
+    def _load_config(self) -> None:
+        with open(self.config_file) as f:
             self.config = yaml.safe_load(f)
-        self.llm_model = self.config['llm_model']
-        self.data_source = self.config['data_source']
+        self.llm_model = self.config.get("llm_model", "gpt-4o")
+        self.data_source = self.config.get("data_source", "")
 
-    def train(self):
-        problem_name = self.config['problem_name']
-        data_source = self.config['data_source']
-        description = self.config.get('description', '')
+    def _create_problem_config(self) -> ProblemConfig:
+        return ProblemConfig(
+            name=self.config.get("problem_name", "Unnamed"),
+            data_source=self.config.get("data_source", ""),
+            description=self.config.get("description", ""),
+            llm_model=self.llm_model,
+            max_iterations=self.config.get("max_iterations", 50),
+        )
 
-        problem = DataScienceProblem(problem_name, data_source)
-        problem.set_description(description)
-        env = Environment('test_env', problem)
-        self.report = Report(problem, self.llm_model)
-        coder = Koder(self.llm_model, problem)
-        coder.n_actions = len(env.coder_action_space)
-        reviewer = CodeReviewer(self.llm_model)
-        # initialize the environment and agents
-        state, reward, done, _, info = env.reset()
-        q_value = np.zeros((len(env.observation_space), coder.n_actions))
-        coder.q_value = q_value
-        reviewer.q_value = np.zeros((len(env.observation_space), reviewer.n_actions))
-        rewards = []
-        evolution = [state]
-        it = 0
-        print(f"Training with  {self.llm_model} LLM on data source {self.data_source}...")
-        with tqdm.tqdm(total=50) as pbar:
-            while not done:
-                info['step'] = it
-                if it == 0:
-                    c_action, r_action = env.action_sample()
+    def train(self) -> None:
+        asyncio.run(self._train_async())
+
+    async def _train_async(self) -> None:
+        problem_config = self._create_problem_config()
+        problem = DataScienceProblem(problem_config)
+
+        llm_config = LLMConfig(model=self.llm_model)
+        agent_config = AgentConfig(llm=llm_config)
+
+        coder = Koder(
+            config=agent_config,
+            problem_description=problem.description,
+            data_source=problem.data_source,
+            sample_data=problem.sample_data(),
+        )
+        reviewer = CodeReviewer(config=agent_config)
+
+        coordinator = AgentCoordinator(
+            agents={"coder": coder, "reviewer": reviewer},
+            problem=problem,
+            max_iterations=problem_config.max_iterations,
+        )
+
+        report = Report(problem, self.llm_model)
+        rewards: list[float] = []
+        states: list[int] = []
+
+        print(
+            f"Training with {self.llm_model} LLM on data source {self.data_source}..."
+        )
+
+        state, info = coordinator.env.reset()
+        done = False
+        iteration = 0
+
+        with tqdm.tqdm(total=problem_config.max_iterations) as pbar:
+            while not done and not state.truncated:
+                info["step"] = iteration
+
+                info = await coder.act(state, info)
+                report.add_coding_step(info)
+                state, reward, done, info = coordinator.env.step_coder(info)
+
+                info = await reviewer.act(state, info)
+                report.add_review_step(info)
+                state, reward_rev, done, info = coordinator.env.step_reviewer(info)
+
+                total_reward = reward + reward_rev
+                if rewards:
+                    rewards.append(total_reward + rewards[-1])
                 else:
-                    c_action = coder.select_action(state)
-                    r_action = reviewer.select_action(state)
-                info = coder.actions[c_action](info)
-                self.report.add_coding_step(info)
-                new_state, reward, done, truncated, info = env.step(c_action, info=info, agent='coder')
-                info = reviewer.actions[r_action](info)
-                self.report.add_review_step(info)
-                new_state, reward_rev, done, truncated, info = env.step(r_action, info=info, agent='reviewer')
-                reviewer.update_policy((state, r_action), new_state, reward_rev)
-                coder.update_policy((state, c_action), new_state, reward)
-                if len(rewards) == 0:
-                    rewards.append(reward + reward_rev)
-                else:
-                    rewards.append(reward + reward_rev+ rewards[-1])
-                state = new_state
-                print(f"Step {it}: Reward: {reward + reward_rev}, State: {state}")
-                evolution.append(state)
-                self.report.save(f"{problem_name}.md")
-                if it == 50:
-                    break
-                it += 1
+                    rewards.append(total_reward)
+
+                states.append(state.score.quality_level)
+                print(
+                    f"Step {iteration}: Reward: {total_reward:.2f}, State: {state.score.quality_level}"
+                )
+
+                report.save(f"{problem.problem_name}.md")
+
+                iteration += 1
                 pbar.update(1)
+
+                if done:
+                    break
+
         self._plot_rewards(rewards)
-        self._plot_policies(coder.q_value, reviewer.q_value)
+        self._plot_policies(coder.q_table, reviewer.q_table)
 
-    def _plot_rewards(self, rewards):
+    def _plot_rewards(self, rewards: list[float]) -> None:
         plt.plot(rewards)
-        plt.xlabel('Time step')
-        plt.ylabel('Total Reward')
+        plt.xlabel("Time step")
+        plt.ylabel("Total Reward")
+        plt.title("Training Rewards")
+        plt.savefig("rewards.png")
         plt.show()
 
-    def _plot_policies(self, code_policy, review_policy):
-        fig, [ax1,ax2] = plt.subplots(1,2)
-        im1 = ax1.imshow(code_policy)
-        ax1.set_title('Coder Policy')
-        ax1.set_ylabel('State')
-        ax1.set_xlabel('Action')
-        fig.colorbar(im1, ax=ax1, orientation='vertical')
-        im2 = ax2.imshow(review_policy)
-        ax2.set_title('Reviewer Policy')
-        ax2.set_ylabel('State')
-        ax2.set_xlabel('Action')
-        fig.colorbar(im2, ax=ax2, orientation='vertical')
+    def _plot_policies(
+        self, coder_policy: np.ndarray, reviewer_policy: np.ndarray
+    ) -> None:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+        im1 = ax1.imshow(coder_policy)
+        ax1.set_title("Coder Q-Table")
+        ax1.set_ylabel("State")
+        ax1.set_xlabel("Action")
+        fig.colorbar(im1, ax=ax1, orientation="vertical")
+
+        im2 = ax2.imshow(reviewer_policy)
+        ax2.set_title("Reviewer Q-Table")
+        ax2.set_ylabel("State")
+        ax2.set_xlabel("Action")
+        fig.colorbar(im2, ax=ax2, orientation="vertical")
+
+        plt.tight_layout()
+        plt.savefig("policies.png")
         plt.show()
 
-    def view_report(self):
-        pass
+    def view_report(self, filename: str | None = None) -> None:
+        problem_name = self.config.get("problem_name", "report")
+        report_file = filename or f"{problem_name}.md"
+
+        report = Report(
+            DataScienceProblem(self._create_problem_config()),
+            self.llm_model,
+        )
+        report.filename = report_file
+        report.open()
 
 
-def main():
+def main() -> None:
     fire.Fire(KarlInterface)
